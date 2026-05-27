@@ -1,0 +1,19 @@
+{
+  "host": "imap.example.com",
+  "port": 993,
+  "username": ".....",
+  "password": "......",
+  "use_ssl": true,
+  "source_folder": "INBOX",
+  "folder_prefix": "INBOX",
+  "folder_separator": "",
+  "batch_size": 100,
+  "max_folder_name_length": 80,
+  "fallback_folder": "_Unsorted",
+  "name_to_folder_overrides": {
+    "Solidot": "奇客Solidot"
+  },
+  "skip_names": [
+    "Important Newsletter"
+  ]
+}
