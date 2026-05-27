@@ -22,6 +22,7 @@ Usage:
 import imaplib
 import email
 import email.header
+import email.message
 import re
 import json
 import argparse
