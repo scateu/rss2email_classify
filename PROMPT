@@ -1,0 +1,9 @@
+I have an IMAP server that serves lots of RSS2EMAIL items in a huge INBOX. Please write a python program that auto classify into different IMAP folders according to "From". 
+
+From: "Above the Law: Joe Patrice" <pi@localhost>                                 
+From: "Hacker News: <author>" <pi@localhost>                                      
+From: "杰哥的{运维，编程，调板子}小笔记: <author>" <pi@localhost>                 
+From: "奇客Solidot–传递最新科技情报: <author>" <pi@localhost>         
+
+those are examples.             
+Please be advised, email address can't be used because it maybe from a bogus one; and escape some special characters to prevent security issues. And Chinese characters are acceptable. I recommend comma and {} and: and <author> can all be dropped.
