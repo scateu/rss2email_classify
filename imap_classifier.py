@@ -114,7 +114,7 @@ def extract_display_name(msg: email.message.Message) -> str:
     return raw_from.strip()
 
 
-def sanitize_to_folder_name(display_name: str, max_len: int = 80) -> str:
+def sanitize_to_folder_name(display_name: str, max_len: int = 80, separator: str = "/") -> str:
     """
     Convert a raw display name into a safe IMAP folder name.
 
@@ -122,17 +122,18 @@ def sanitize_to_folder_name(display_name: str, max_len: int = 80) -> str:
         1. Strip any "<...>" segments (e.g. "<author>", "<someone>")
         2. Remove characters: , { } : ; " ' ` * % \\ /
            (security-sensitive or IMAP-special)
-        3. Replace newlines/tabs with space
-        4. Collapse multiple spaces / leading-trailing whitespace
-        5. Strip leading/trailing dots, dashes, underscores
-        6. Truncate to max_len
-        7. Chinese / other Unicode letters are preserved
+        3. Replace the IMAP hierarchy separator with a safe alternative
+        4. Replace newlines/tabs with space
+        5. Collapse multiple spaces / leading-trailing whitespace
+        6. Strip leading/trailing dots, dashes, underscores
+        7. Truncate to max_len
+        8. Chinese / other Unicode letters are preserved
 
     Examples:
         "Above the Law: Joe Patrice"                    → "Above the Law Joe Patrice"
         "Hacker News: <author>"                         → "Hacker News"
-        "杰哥的{运维，编程，调板子}小笔记: <author>"     → "杰哥的运维编程调板子小笔记"
         "奇客Solidot–传递最新科技情报: <author>"         → "奇客Solidot–传递最新科技情报"
+        "something.awesome" (sep=".")                   → "something_awesome"
     """
     s = display_name
 
@@ -146,18 +147,22 @@ def sanitize_to_folder_name(display_name: str, max_len: int = 80) -> str:
     s = re.sub(r'[,{}:;\"\'\`\*%\\/|!@#\$\^&=\+\[\]?~]', '', s)
 
     # Also remove fullwidth commas/colons and Chinese-specific punctuation
-    # that might sneak in: ，：｛｝「」【】
     s = re.sub(r'[，：｛｝「」【】『』〈〉《》]', '', s)
 
-    # 3. Normalize whitespace
+    # 3. Replace IMAP hierarchy separator with underscore to prevent
+    #    accidental sub-folder creation (e.g. "." in Strstrstrstrstrstrstrstrstrstr"something.awesome")
+    if separator:
+        s = s.replace(separator, '_')
+
+    # 4. Normalize whitespace
     s = re.sub(r'[\r\n\t]+', ' ', s)
     s = re.sub(r'\s+', ' ', s)
     s = s.strip()
 
-    # 4. Strip leading/trailing dots, dashes, underscores (filesystem safety)
+    # 5. Strip leading/trailing dots, dashes, underscores (filesystem safety)
     s = s.strip('.-_ ')
 
-    # 5. Truncate
+    # 6. Truncate
     if len(s) > max_len:
         s = s[:max_len].rstrip()
 
@@ -318,7 +323,6 @@ class IMAPClassifier:
         self.existing_folders.add(folder_path)
 
     # -- resolve folder name -------------------------------------------------
-
     def _resolve_folder_name(self, display_name: str) -> Optional[str]:
         """
         Given a raw display name, return the target folder name or None to skip.
@@ -332,11 +336,20 @@ class IMAPClassifier:
         overrides = self.cfg.get("name_to_folder_overrides", {})
         for pattern, folder in overrides.items():
             if pattern.lower() in display_name.lower():
-                return folder
+                # Also sanitize override values to escape separator
+                return sanitize_to_folder_name(
+                    folder,
+                    self.cfg.get("max_folder_name_length", 80),
+                    self.separator,
+                )
 
         # Extract feed name (before first colon), then sanitize
         feed_name = display_name_to_feed_name(display_name)
-        sanitized = sanitize_to_folder_name(feed_name, self.cfg.get("max_folder_name_length", 80))
+        sanitized = sanitize_to_folder_name(
+            feed_name,
+            self.cfg.get("max_folder_name_length", 80),
+            self.separator,
+        )
 
         if not sanitized:
             return self.cfg.get("fallback_folder", "_Unsorted")
